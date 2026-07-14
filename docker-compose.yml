@@ -1,0 +1,63 @@
+services:
+  # ---------------------------------------------------------------------------
+  # Kafka (KRaft mode, no ZooKeeper). Two listeners:
+  #   kafka:9092       -> for containers on this network (the app)
+  #   localhost:29092  -> for clients running on your host machine
+  # ---------------------------------------------------------------------------
+  kafka:
+    image: apache/kafka:3.9.0
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1" ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
+  # Web UI to eyeball topics/messages: http://localhost:8080
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: signal-yard
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # The signal generator itself.
+  #   http://localhost:4000  -> dashboard + long-poll + SSE + WebSocket
+  #   localhost:50051        -> gRPC
+  # ---------------------------------------------------------------------------
+  app:
+    build: .
+    ports:
+      - "4000:4000"
+      - "50051:50051"
+    environment:
+      PORT: "4000"
+      GRPC_PORT: "50051"
+      KAFKA_BROKERS: "kafka:9092"
+      KAFKA_TOPIC: "signals"
+      GENERATOR_INTERVAL_MS: "700"
+      SECRET_KEY_BASE: "please_change_me_this_is_a_dev_only_key_000000000000000000000000000000"
+    depends_on:
+      kafka:
+        condition: service_healthy

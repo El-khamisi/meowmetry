@@ -1,0 +1,5 @@
+# For the Python example clients.
+websockets>=12.0
+kafka-python>=2.0.2
+grpcio>=1.60.0
+grpcio-tools>=1.60.0

@@ -1,0 +1,57 @@
+defmodule NotifyWeb.SseController do
+  @moduledoc """
+  Transport 2 — Server-Sent Events.
+
+      GET /api/sse
+
+  This channel carries **log** signals only. Streams `text/event-stream`; each
+  signal is one SSE event:
+
+      event: signal
+      id: 128
+      data: {"id":"sig_..","type":"log",...}
+
+  A `: keep-alive` comment is sent every 15s so idle connections stay open.
+  """
+  use Phoenix.Controller
+  import Plug.Conn
+  require Logger
+
+  @keepalive_ms 15_000
+  @type_ Notify.Transports.type(:sse)
+
+  def stream(conn, _params) do
+    topic = Notify.Generator.topic(@type_)
+    Phoenix.PubSub.subscribe(Notify.PubSub, topic)
+
+    conn =
+      conn
+      |> put_resp_header("content-type", "text/event-stream")
+      |> put_resp_header("cache-control", "no-cache")
+      |> put_resp_header("x-accel-buffering", "no")
+      |> send_chunked(200)
+
+    case chunk(conn, ": connected to #{topic}\n\n") do
+      {:ok, conn} -> loop(conn)
+      {:error, _} -> conn
+    end
+  end
+
+  defp loop(conn) do
+    receive do
+      {:signal, sig} ->
+        frame = "event: signal\nid: #{sig["seq"]}\ndata: #{Jason.encode!(sig)}\n\n"
+
+        case chunk(conn, frame) do
+          {:ok, conn} -> loop(conn)
+          {:error, _closed} -> conn
+        end
+    after
+      @keepalive_ms ->
+        case chunk(conn, ": keep-alive\n\n") do
+          {:ok, conn} -> loop(conn)
+          {:error, _closed} -> conn
+        end
+    end
+  end
+end

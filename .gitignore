@@ -1,0 +1,16 @@
+# Build artifacts
+/_build/
+/deps/
+/cover/
+/doc/
+erl_crash.dump
+*.ez
+*.beam
+/.elixir_ls/
+
+# Env
+.env
+*.secret
+
+# OS
+.DS_Store

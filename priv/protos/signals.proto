@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package notify;
+
+// Streaming API that mirrors the HTTP/WS/Kafka signal feed.
+//
+// Regenerate the Elixir stubs (already committed at lib/notify/grpc/signals.pb.ex) with:
+//   protoc --elixir_out=plugins=grpc:./lib priv/protos/signals.proto
+service SignalStream {
+  // Server-streaming subscription. Leave the filter fields empty for everything.
+  rpc Subscribe(SubscribeRequest) returns (stream Signal);
+}
+
+message SubscribeRequest {
+  repeated string types = 1;    // e.g. ["trace", "log"]; empty = all types
+  repeated string services = 2; // e.g. ["checkout"];     empty = all services
+}
+
+message Signal {
+  string id = 1;
+  int64 seq = 2;
+  int64 ts = 3; // unix milliseconds
+  string type = 4;
+  string service = 5;
+  string severity = 6;
+  string payload_json = 7; // type-specific fields, JSON-encoded
+}
