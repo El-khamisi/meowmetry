@@ -54,6 +54,9 @@ Then open **http://localhost:4000** for a live dashboard, and
 | Dashboard        | http://localhost:4000                      |
 | Live status JSON | http://localhost:4000/api/status           |
 | Health           | http://localhost:4000/health               |
+| Grafana          | http://localhost:3000 (anonymous admin)    |
+| VictoriaMetrics  | http://localhost:8428 (OTLP + query API)   |
+| Tempo (query API)| http://localhost:3200 (OTLP 4317/4318)     |
 | Long polling     | http://localhost:4000/api/poll             |
 | SSE              | http://localhost:4000/api/sse              |
 | WebSocket        | ws://localhost:4000/ws                     |
@@ -117,6 +120,51 @@ clients/kafka_consumer.py localhost:29092
 ```
 
 ---
+
+## Observability stack (OTLP → VictoriaMetrics + Tempo + Grafana)
+
+Two of the signal types are generated to *look real* (ranges, per-service
+baselines, a day/night wave, occasional spikes) so they're worth charting:
+
+* **`metric`** carries extra dimensions — `env`, `region`, `host` — on top of
+  `name` / `value` / `unit` / `resource`.
+* **`trace`** carries realistic latencies plus OTEL-shaped `span_kind` and
+  `http_status`, with a lifelike ~2–5% error rate.
+
+A small **bridge** turns each stream into **OTLP** and pushes it straight to the
+store that fits it. Both VictoriaMetrics and Tempo ingest OTLP natively, so
+there's no collector and no scrape hop. Grafana reads both (dashboards
+auto-provisioned under the *Signal Yard* folder):
+
+```
+ metric  --WebSocket-->  otel_metrics_bridge.py  --OTLP push-->  VictoriaMetrics
+ trace   --long-poll-->  tempo_bridge.py         --OTLP push-->  Tempo
+                                                                  \--> Grafana <--/
+```
+
+Two ideas this is meant to teach:
+
+1. **Transport ≠ ingestion model.** How a client *reads* a signal (WebSocket,
+   long-poll, …) is independent of how it's *stored*. A small **bridge** adapts
+   each transport onto OTLP — that adapter, not the transport, is the fit.
+2. **One protocol, many signals.** OTLP carries metrics *and* traces (and logs),
+   so both bridges speak the same wire format; they just point at different
+   OTLP-native backends. VictoriaMetrics is Prometheus-compatible, so Grafana
+   queries it with plain PromQL as a "Prometheus" datasource.
+
+`docker compose up --build` starts everything. Then in Grafana open
+**Signal Yard → Metrics (VictoriaMetrics)** and **→ Traces (Tempo)**.
+
+To run the bridges yourself instead of the containers:
+
+```bash
+pip install -r clients/requirements.txt
+clients/tempo_bridge.py        http://localhost:4000/api/poll http://localhost:4318
+clients/otel_metrics_bridge.py ws://localhost:4000/ws         http://localhost:8428/opentelemetry
+```
+
+Config lives under [deploy/](deploy/) (Tempo + Grafana provisioning + dashboard
+JSON). VictoriaMetrics needs no config file — it ingests OTLP out of the box.
 
 ## Running without Docker
 

@@ -1,0 +1,82 @@
+{
+  "uid": "signalyard-traces",
+  "title": "Signal Yard — Traces (Tempo)",
+  "tags": ["signal-yard", "traces"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Span rate by operation (spans/s)",
+      "type": "timeseries",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{} | rate() by (name)"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Error span rate (spans/s)",
+      "type": "timeseries",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ status = error } | rate() by (name)"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "p95 duration by operation",
+      "type": "timeseries",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "ns" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{} | quantile_over_time(duration, .95) by (name)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Recent traces",
+      "type": "table",
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceqlSearch",
+          "limit": 50,
+          "filters": [
+            {
+              "id": "span-name",
+              "tag": "name",
+              "operator": "=",
+              "scope": "span"
+            }
+          ],
+          "query": "{}"
+        }
+      ]
+    }
+  ]
+}

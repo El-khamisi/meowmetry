@@ -61,3 +61,83 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Observability stack — direct OTLP, no collector.
+  #
+  #   metrics (WS)   -> otel_metrics_bridge.py -- OTLP push --> VictoriaMetrics
+  #   traces  (poll) -> tempo_bridge.py        -- OTLP push --> Tempo
+  #                                                             \--> Grafana <--/
+  #
+  # Both VictoriaMetrics and Tempo ingest OTLP natively, so each bridge pushes
+  # straight to its store — no OpenTelemetry Collector and no scrape hop.
+  #   grafana : reads VictoriaMetrics + Tempo (http://localhost:3000, anon admin)
+  # ---------------------------------------------------------------------------
+
+  # Stores metrics. Ingests OTLP at /opentelemetry/v1/metrics; Prometheus-
+  # compatible query API on :8428 (Grafana talks to it as a Prometheus source).
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:v1.102.1
+    command: [ "--retentionPeriod=1d" ]
+    ports:
+      - "8428:8428"
+    depends_on:
+      - app
+
+  # Tempo stores traces; the bridge pushes them in over OTLP (gRPC 4317 / HTTP 4318).
+  tempo:
+    image: grafana/tempo:2.6.1
+    command: [ "-config.file=/etc/tempo.yaml" ]
+    ports:
+      - "3200:3200"   # Tempo query API (Grafana datasource)
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    volumes:
+      - ./deploy/tempo/tempo.yaml:/etc/tempo.yaml:ro
+
+  # Bridges the long-poll `trace` stream straight to Tempo as OTLP spans.
+  tempo-bridge:
+    image: python:3.12-slim
+    working_dir: /clients
+    volumes:
+      - ./clients:/clients:ro
+    command:
+      - bash
+      - -lc
+      - "pip install -q requests opentelemetry-sdk opentelemetry-exporter-otlp-proto-http &&
+         python tempo_bridge.py http://app:4000/api/poll http://tempo:4318"
+    depends_on:
+      - app
+      - tempo
+
+  # Bridges the WebSocket `metric` stream straight to VictoriaMetrics as OTLP gauges.
+  metrics-bridge:
+    image: python:3.12-slim
+    working_dir: /clients
+    volumes:
+      - ./clients:/clients:ro
+    command:
+      - bash
+      - -lc
+      - "pip install -q websockets opentelemetry-sdk opentelemetry-exporter-otlp-proto-http &&
+         python otel_metrics_bridge.py ws://app:4000/ws http://victoriametrics:8428/opentelemetry"
+    depends_on:
+      - app
+      - victoriametrics
+
+  # Pre-wired with VictoriaMetrics + Tempo datasources and starter dashboards.
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      GF_FEATURE_TOGGLES_ENABLE: "traceqlMetrics"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - victoriametrics
+      - tempo

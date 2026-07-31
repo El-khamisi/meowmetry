@@ -1,0 +1,23 @@
+apiVersion: 1
+
+datasources:
+  # VictoriaMetrics is Prometheus-compatible, so we use the built-in
+  # "prometheus" datasource type and just point it at VM's query API.
+  - name: VictoriaMetrics
+    uid: victoriametrics
+    type: prometheus
+    access: proxy
+    url: http://victoriametrics:8428
+    isDefault: true
+    jsonData:
+      timeInterval: 5s
+
+  - name: Tempo
+    uid: tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    jsonData:
+      # Let "duration" and error panels use TraceQL metrics.
+      streamingEnabled:
+        search: true

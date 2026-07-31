@@ -1,0 +1,47 @@
+# Single-binary Tempo for the sandbox. Receives spans over OTLP (from
+# tempo_bridge.py) and stores them on local disk. The metrics_generator's
+# local-blocks processor lets Grafana run TraceQL *metrics* queries
+# (rate / quantile_over_time) straight against Tempo — no Prometheus needed.
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 1h
+
+metrics_generator:
+  processor:
+    local_blocks:
+      filter_server_spans: false
+  storage:
+    path: /var/tempo/generator/wal
+  traces_storage:
+    path: /var/tempo/generator/traces
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [local-blocks]
+      generate_native_histograms: both

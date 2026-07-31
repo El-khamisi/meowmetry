@@ -14,3 +14,7 @@ erl_crash.dump
 
 # OS
 .DS_Store
+
+# Python bytecode from clients/
+__pycache__/
+*.pyc
