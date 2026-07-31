@@ -1,27 +1,27 @@
-defmodule NotifyWeb.PageController do
+defmodule MeowmetryWeb.PageController do
   @moduledoc """
   Landing page with a live SSE dashboard, plus a `/health` endpoint.
   """
   use Phoenix.Controller
 
   def health(conn, _params) do
-    json(conn, %{status: "ok", buffer_latest_seq: Notify.Buffer.latest_seq()})
+    json(conn, %{status: "ok", buffer_latest_seq: Meowmetry.Buffer.latest_seq()})
   end
 
   @doc "Server-side transport status for the dashboard (polled every second)."
   def status(conn, _params) do
-    grpc = Application.get_env(:notify, :grpc, [])
+    grpc = Application.get_env(:meowmetry, :grpc, [])
 
     json(conn, %{
-      generated: Notify.Buffer.latest_seq(),
-      interval_ms: Application.get_env(:notify, :generator_interval_ms, 700),
-      assignments: Notify.Transports.assignments(),
-      kafka: Notify.Kafka.Producer.status(),
+      generated: Meowmetry.Buffer.latest_seq(),
+      interval_ms: Application.get_env(:meowmetry, :generator_interval_ms, 700),
+      assignments: Meowmetry.Transports.assignments(),
+      kafka: Meowmetry.Kafka.Producer.status(),
       grpc: %{
         enabled: Keyword.get(grpc, :enabled, true),
         port: Keyword.get(grpc, :port, 50051),
-        type: Notify.Transports.type(:grpc),
-        service: "notify.SignalStream/Subscribe"
+        type: Meowmetry.Transports.type(:grpc),
+        service: "meowmetry.SignalStream/Subscribe"
       }
     })
   end
@@ -39,7 +39,7 @@ defmodule NotifyWeb.PageController do
     <head>
       <meta charset="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>Signal Yard — transports</title>
+      <title>Meowmetry — transports</title>
       <style>
         :root { color-scheme: dark; }
         * { box-sizing: border-box; }
@@ -110,7 +110,7 @@ defmodule NotifyWeb.PageController do
       <div class="grid">
         <!-- Long polling -->
         <div class="card" id="card-poll">
-          <div class="head"><span class="dot" id="dot-poll"></span><h2>Long polling</h2><span class="chip type #{Notify.Transports.type(:poll)}">#{Notify.Transports.type(:poll)}</span><code>GET /api/poll</code></div>
+          <div class="head"><span class="dot" id="dot-poll"></span><h2>Long polling</h2><span class="chip type #{Meowmetry.Transports.type(:poll)}">#{Meowmetry.Transports.type(:poll)}</span><code>GET /api/poll</code></div>
           <div class="metric"><span class="rate" id="rate-poll">0.0</span><small>msg/s (this page)</small></div>
           <div class="sub"><b id="count-poll">0</b> received · <span id="state-poll">connecting…</span></div>
           <div class="log" id="log-poll"></div>
@@ -118,7 +118,7 @@ defmodule NotifyWeb.PageController do
 
         <!-- SSE -->
         <div class="card" id="card-sse">
-          <div class="head"><span class="dot" id="dot-sse"></span><h2>Server-Sent Events</h2><span class="chip type #{Notify.Transports.type(:sse)}">#{Notify.Transports.type(:sse)}</span><code>GET /api/sse</code></div>
+          <div class="head"><span class="dot" id="dot-sse"></span><h2>Server-Sent Events</h2><span class="chip type #{Meowmetry.Transports.type(:sse)}">#{Meowmetry.Transports.type(:sse)}</span><code>GET /api/sse</code></div>
           <div class="metric"><span class="rate" id="rate-sse">0.0</span><small>msg/s (this page)</small></div>
           <div class="sub"><b id="count-sse">0</b> received · <span id="state-sse">connecting…</span></div>
           <div class="log" id="log-sse"></div>
@@ -126,7 +126,7 @@ defmodule NotifyWeb.PageController do
 
         <!-- WebSocket -->
         <div class="card" id="card-ws">
-          <div class="head"><span class="dot" id="dot-ws"></span><h2>WebSocket</h2><span class="chip type #{Notify.Transports.type(:ws)}">#{Notify.Transports.type(:ws)}</span><code>WS /ws</code></div>
+          <div class="head"><span class="dot" id="dot-ws"></span><h2>WebSocket</h2><span class="chip type #{Meowmetry.Transports.type(:ws)}">#{Meowmetry.Transports.type(:ws)}</span><code>WS /ws</code></div>
           <div class="metric"><span class="rate" id="rate-ws">0.0</span><small>msg/s (this page)</small></div>
           <div class="sub"><b id="count-ws">0</b> received · <span id="state-ws">connecting…</span></div>
           <div class="log" id="log-ws"></div>
@@ -134,15 +134,15 @@ defmodule NotifyWeb.PageController do
 
         <!-- gRPC (server-reported) -->
         <div class="card" id="card-grpc">
-          <div class="head"><span class="dot" id="dot-grpc"></span><h2>gRPC stream</h2><span class="chip type #{Notify.Transports.type(:grpc)}">#{Notify.Transports.type(:grpc)}</span><code>:50051</code></div>
+          <div class="head"><span class="dot" id="dot-grpc"></span><h2>gRPC stream</h2><span class="chip type #{Meowmetry.Transports.type(:grpc)}">#{Meowmetry.Transports.type(:grpc)}</span><code>:50051</code></div>
           <div class="metric"><span class="rate" id="rate-grpc">0.0</span><small>msg/s per subscriber</small></div>
           <div class="sub"><span id="state-grpc">server-streaming</span></div>
-          <div class="last">browser can't speak gRPC — run <code>clients/grpc_client.py</code>. Streams #{Notify.Transports.type(:grpc)} signals to every subscriber.</div>
+          <div class="last">browser can't speak gRPC — run <code>clients/grpc_client.py</code>. Streams #{Meowmetry.Transports.type(:grpc)} signals to every subscriber.</div>
         </div>
 
         <!-- Kafka (server-reported) -->
         <div class="card" id="card-kafka">
-          <div class="head"><span class="dot" id="dot-kafka"></span><h2>Kafka</h2><span class="chip type #{Notify.Transports.type(:kafka)}">#{Notify.Transports.type(:kafka)}</span><code id="code-kafka">topic: signals</code></div>
+          <div class="head"><span class="dot" id="dot-kafka"></span><h2>Kafka</h2><span class="chip type #{Meowmetry.Transports.type(:kafka)}">#{Meowmetry.Transports.type(:kafka)}</span><code id="code-kafka">topic: signals</code></div>
           <div class="metric"><span class="rate" id="rate-kafka">0.0</span><small>msg/s produced</small></div>
           <div class="sub"><b id="count-kafka">0</b> published · <span id="state-kafka">connecting…</span></div>
           <div class="last" id="last-kafka">consume it: <code>clients/kafka_consumer.py</code></div>

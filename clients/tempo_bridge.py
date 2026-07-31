@@ -52,7 +52,7 @@ def tracer_for(service):
             BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{OTLP_ENDPOINT}/v1/traces"))
         )
         _providers[service] = prov
-    return prov.get_tracer("signal-yard.tempo-bridge")
+    return prov.get_tracer("meowmetry.tempo-bridge")
 
 
 def emit(sig):

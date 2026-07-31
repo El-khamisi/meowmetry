@@ -1,4 +1,4 @@
-defmodule NotifyWeb.SignalSocket do
+defmodule MeowmetryWeb.SignalSocket do
   @moduledoc """
   WebSock handler behind `GET /ws`.
 
@@ -8,12 +8,12 @@ defmodule NotifyWeb.SignalSocket do
   @behaviour WebSock
   require Logger
 
-  @type_ Notify.Transports.type(:ws)
+  @type_ Meowmetry.Transports.type(:ws)
 
   @impl true
   def init(_opts) do
-    topic = Notify.Generator.topic(@type_)
-    Phoenix.PubSub.subscribe(Notify.PubSub, topic)
+    topic = Meowmetry.Generator.topic(@type_)
+    Phoenix.PubSub.subscribe(Meowmetry.PubSub, topic)
 
     hello = Jason.encode!(%{"type" => "hello", "subscribed" => topic})
     {:push, {:text, hello}, %{topic: topic}}

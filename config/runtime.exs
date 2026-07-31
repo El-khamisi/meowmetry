@@ -4,19 +4,19 @@ import Config
 # environment-driven knobs an intern might flip live here.
 
 # --- HTTP endpoint ---------------------------------------------------------
-config :notify, NotifyWeb.Endpoint,
+config :meowmetry, MeowmetryWeb.Endpoint,
   http: [ip: {0, 0, 0, 0}, port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if secret = System.get_env("SECRET_KEY_BASE") do
-  config :notify, NotifyWeb.Endpoint, secret_key_base: secret
+  config :meowmetry, MeowmetryWeb.Endpoint, secret_key_base: secret
 end
 
 # In prod the endpoint must be told to start serving.
 if config_env() == :prod do
-  config :notify, NotifyWeb.Endpoint, server: true
+  config :meowmetry, MeowmetryWeb.Endpoint, server: true
 
   unless System.get_env("SECRET_KEY_BASE") do
-    config :notify, NotifyWeb.Endpoint,
+    config :meowmetry, MeowmetryWeb.Endpoint,
       secret_key_base: :crypto.strong_rand_bytes(48) |> Base.encode64()
   end
 end
@@ -31,17 +31,17 @@ brokers =
     {host, String.to_integer(port)}
   end)
 
-config :notify, :kafka,
+config :meowmetry, :kafka,
   brokers: brokers,
   enabled: System.get_env("KAFKA_ENABLED", "true") == "true",
   topic: System.get_env("KAFKA_TOPIC", "signals")
 
 # --- gRPC ------------------------------------------------------------------
-config :notify, :grpc,
+config :meowmetry, :grpc,
   port: String.to_integer(System.get_env("GRPC_PORT", "50051")),
   enabled: System.get_env("GRPC_ENABLED", "true") == "true"
 
 # --- Generator -------------------------------------------------------------
 if ms = System.get_env("GENERATOR_INTERVAL_MS") do
-  config :notify, generator_interval_ms: String.to_integer(ms)
+  config :meowmetry, generator_interval_ms: String.to_integer(ms)
 end

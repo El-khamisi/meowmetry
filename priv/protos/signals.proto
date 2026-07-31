@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package notify;
+package meowmetry;
 
 // Streaming API that mirrors the HTTP/WS/Kafka signal feed.
 //
-// Regenerate the Elixir stubs (already committed at lib/notify/grpc/signals.pb.ex) with:
+// Regenerate the Elixir stubs (already committed at lib/meowmetry/grpc/signals.pb.ex) with:
 //   protoc --elixir_out=plugins=grpc:./lib priv/protos/signals.proto
 service SignalStream {
   // Server-streaming subscription. Leave the filter fields empty for everything.

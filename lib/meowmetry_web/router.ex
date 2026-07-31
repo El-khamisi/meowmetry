@@ -1,4 +1,4 @@
-defmodule NotifyWeb.Router do
+defmodule MeowmetryWeb.Router do
   use Phoenix.Router
   import Phoenix.Controller
 
@@ -6,7 +6,7 @@ defmodule NotifyWeb.Router do
     plug :accepts, ["html"]
   end
 
-  scope "/", NotifyWeb do
+  scope "/", MeowmetryWeb do
     # Landing page + live dashboard.
     get "/", PageController, :index
     get "/health", PageController, :health

@@ -1,4 +1,4 @@
-# Signal Yard
+# Meowmetry
 
 A teaching sandbox for interns learning **real-time transports**.
 
@@ -10,7 +10,7 @@ shape.
 
 ```
                         ┌───────────────────────────┐
-                        │   Notify.Generator (700ms) │
+                        │   Meowmetry.Generator (700ms) │
                         │  round-robins the 5 types   │
                         └──────────────┬──────────────┘
                                        │ Phoenix.PubSub (per-type topics)
@@ -60,7 +60,7 @@ Then open **http://localhost:4000** for a live dashboard, and
 | Long polling     | http://localhost:4000/api/poll             |
 | SSE              | http://localhost:4000/api/sse              |
 | WebSocket        | ws://localhost:4000/ws                     |
-| gRPC             | localhost:50051 (`notify.SignalStream`)    |
+| gRPC             | localhost:50051 (`meowmetry.SignalStream`)    |
 | Kafka (host)     | localhost:29092, topic `signals`           |
 | Kafka (in-net)   | kafka:9092                                  |
 | Kafka UI         | http://localhost:8080                      |
@@ -70,7 +70,7 @@ Then open **http://localhost:4000** for a live dashboard, and
 ## The five transports
 
 Each carries **one** signal type. The mapping lives in
-[lib/notify/transports.ex](lib/notify/transports.ex).
+[lib/meowmetry/transports.ex](lib/meowmetry/transports.ex).
 
 ### 1. Long polling → `trace` — `GET /api/poll?cursor=<seq>`
 Returns every trace newer than `cursor`. If nothing is ready it holds the
@@ -99,7 +99,7 @@ clients/ws_client.py ws://localhost:4000/ws
 # or in a browser console:  new WebSocket('ws://localhost:4000/ws')
 ```
 
-### 4. gRPC → `profile` — `localhost:50051`, service `notify.SignalStream`
+### 4. gRPC → `profile` — `localhost:50051`, service `meowmetry.SignalStream`
 Server-streaming `Subscribe(SubscribeRequest) returns (stream Signal)`. Streams
 profiles; the optional `services` field narrows by service. Proto lives at
 [priv/protos/signals.proto](priv/protos/signals.proto).
@@ -134,7 +134,7 @@ baselines, a day/night wave, occasional spikes) so they're worth charting:
 A small **bridge** turns each stream into **OTLP** and pushes it straight to the
 store that fits it. Both VictoriaMetrics and Tempo ingest OTLP natively, so
 there's no collector and no scrape hop. Grafana reads both (dashboards
-auto-provisioned under the *Signal Yard* folder):
+auto-provisioned under the *Meowmetry* folder):
 
 ```
  metric  --WebSocket-->  otel_metrics_bridge.py  --OTLP push-->  VictoriaMetrics
@@ -153,7 +153,7 @@ Two ideas this is meant to teach:
    queries it with plain PromQL as a "Prometheus" datasource.
 
 `docker compose up --build` starts everything. Then in Grafana open
-**Signal Yard → Metrics (VictoriaMetrics)** and **→ Traces (Tempo)**.
+**Meowmetry → Metrics (VictoriaMetrics)** and **→ Traces (Tempo)**.
 
 To run the bridges yourself instead of the containers:
 
@@ -189,9 +189,9 @@ KAFKA_ENABLED=false mix phx.server   # skip Kafka if you have no broker
 ## Layout
 
 ```
-lib/notify/            core: Signal, Generator, Buffer, Kafka.Producer
-lib/notify/grpc/       protobuf-generated stubs
-lib/notify_web/        Endpoint, Router, controllers, WebSocket, gRPC server
+lib/meowmetry/            core: Signal, Generator, Buffer, Kafka.Producer
+lib/meowmetry/grpc/       protobuf-generated stubs
+lib/meowmetry_web/        Endpoint, Router, controllers, WebSocket, gRPC server
 priv/protos/           signals.proto
 clients/               runnable example clients (bash + python)
 ```

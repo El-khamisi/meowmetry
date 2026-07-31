@@ -1,21 +1,21 @@
-defmodule NotifyWeb.Grpc.SignalServer do
+defmodule MeowmetryWeb.Grpc.SignalServer do
   @moduledoc """
   Transport 4 — gRPC server-streaming.
 
-  Implements `notify.SignalStream/Subscribe`. This channel carries **profile**
+  Implements `meowmetry.SignalStream/Subscribe`. This channel carries **profile**
   signals only; subscribes to that stream and forwards each one to the caller
   until they disconnect. An optional `services` filter still narrows by service.
   """
-  use GRPC.Server, service: Notify.Grpc.SignalStream.Service
+  use GRPC.Server, service: Meowmetry.Grpc.SignalStream.Service
 
-  alias Notify.Grpc.Signal
+  alias Meowmetry.Grpc.Signal
 
-  @type_ Notify.Transports.type(:grpc)
+  @type_ Meowmetry.Transports.type(:grpc)
 
-  @spec subscribe(Notify.Grpc.SubscribeRequest.t(), GRPC.Server.Stream.t()) :: any()
+  @spec subscribe(Meowmetry.Grpc.SubscribeRequest.t(), GRPC.Server.Stream.t()) :: any()
   def subscribe(request, stream) do
     services = MapSet.new(request.services || [])
-    Phoenix.PubSub.subscribe(Notify.PubSub, Notify.Generator.topic(@type_))
+    Phoenix.PubSub.subscribe(Meowmetry.PubSub, Meowmetry.Generator.topic(@type_))
     loop(stream, services)
   end
 

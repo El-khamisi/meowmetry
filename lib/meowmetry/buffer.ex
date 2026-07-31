@@ -1,4 +1,4 @@
-defmodule Notify.Buffer do
+defmodule Meowmetry.Buffer do
   @moduledoc """
   A bounded, in-memory ring of the most recent signals.
 
@@ -29,7 +29,7 @@ defmodule Notify.Buffer do
 
   @impl true
   def init(opts) do
-    max = Keyword.get(opts, :max, Application.get_env(:notify, :buffer_size, 2_000))
+    max = Keyword.get(opts, :max, Application.get_env(:meowmetry, :buffer_size, 2_000))
     {:ok, %{items: [], max: max, latest: 0}}
   end
 

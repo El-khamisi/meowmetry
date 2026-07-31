@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: signal-yard
+  - name: meowmetry
     orgId: 1
-    folder: Signal Yard
+    folder: Meowmetry
     type: file
     disableDeletion: false
     editable: true

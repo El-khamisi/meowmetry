@@ -1,5 +1,5 @@
-defmodule NotifyWeb.Endpoint do
-  use Phoenix.Endpoint, otp_app: :notify
+defmodule MeowmetryWeb.Endpoint do
+  use Phoenix.Endpoint, otp_app: :meowmetry
 
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
@@ -9,5 +9,5 @@ defmodule NotifyWeb.Endpoint do
     pass: ["*/*"],
     json_decoder: Jason
 
-  plug NotifyWeb.Router
+  plug MeowmetryWeb.Router
 end

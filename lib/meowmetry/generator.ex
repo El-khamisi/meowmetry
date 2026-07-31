@@ -1,14 +1,14 @@
-defmodule Notify.Generator do
+defmodule Meowmetry.Generator do
   @moduledoc """
   The heartbeat of the whole system.
 
-  On a jittered timer it mints a fresh `Notify.Signal` and fans it out to every
+  On a jittered timer it mints a fresh `Meowmetry.Signal` and fans it out to every
   transport at once:
 
     * `Phoenix.PubSub` topic `"signals"` — every signal
     * `Phoenix.PubSub` topic `"signals:<type>"` — per-type (trace/log/...)
-    * `Notify.Buffer` — for long polling
-    * `Notify.Kafka.Producer` — published to the Kafka topic
+    * `Meowmetry.Buffer` — for long polling
+    * `Meowmetry.Kafka.Producer` — published to the Kafka topic
 
   Everything downstream is just a subscriber, which keeps the transports small.
   """
@@ -16,7 +16,7 @@ defmodule Notify.Generator do
   require Logger
 
   @name __MODULE__
-  @pubsub Notify.PubSub
+  @pubsub Meowmetry.PubSub
   @topic "signals"
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: @name)
@@ -29,7 +29,7 @@ defmodule Notify.Generator do
 
   @impl true
   def init(_opts) do
-    interval = Application.get_env(:notify, :generator_interval_ms, 700)
+    interval = Application.get_env(:meowmetry, :generator_interval_ms, 700)
     state = %{seq: 0, interval: interval}
     schedule(interval)
     Logger.info("Generator started, emitting a signal roughly every #{interval}ms")
@@ -41,15 +41,15 @@ defmodule Notify.Generator do
     seq = state.seq + 1
     # Round-robin through the types so every dedicated channel gets a steady,
     # even flow instead of a random one that could starve a transport.
-    types = Notify.Signal.types()
+    types = Meowmetry.Signal.types()
     type = Enum.at(types, rem(state.seq, length(types)))
-    signal = Notify.Signal.build(type, seq, System.system_time(:millisecond))
+    signal = Meowmetry.Signal.build(type, seq, System.system_time(:millisecond))
 
     # Fan out.
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:signal, signal})
     Phoenix.PubSub.broadcast(@pubsub, topic(signal["type"]), {:signal, signal})
-    Notify.Buffer.put(signal)
-    Notify.Kafka.Producer.publish(signal)
+    Meowmetry.Buffer.put(signal)
+    Meowmetry.Kafka.Producer.publish(signal)
 
     # Jitter the next tick +/- 40% so the stream feels organic.
     jitter = trunc(state.interval * (0.6 + :rand.uniform() * 0.8))

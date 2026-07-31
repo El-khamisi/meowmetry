@@ -1,4 +1,4 @@
-defmodule NotifyWeb.WsController do
+defmodule MeowmetryWeb.WsController do
   @moduledoc """
   Transport 3 — raw WebSocket.
 
@@ -7,14 +7,14 @@ defmodule NotifyWeb.WsController do
 
   This is a plain WebSocket (not a Phoenix Channel) so any client in any
   language can connect with a bare WebSocket library. The actual protocol is
-  handled by `NotifyWeb.SignalSocket`.
+  handled by `MeowmetryWeb.SignalSocket`.
   """
   use Phoenix.Controller
   import Plug.Conn
 
   def upgrade(conn, params) do
     conn
-    |> WebSockAdapter.upgrade(NotifyWeb.SignalSocket, [type: params["type"]], timeout: 60_000)
+    |> WebSockAdapter.upgrade(MeowmetryWeb.SignalSocket, [type: params["type"]], timeout: 60_000)
     |> halt()
   end
 end

@@ -1,9 +1,9 @@
-defmodule Notify.MixProject do
+defmodule Meowmetry.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :notify,
+      app: :meowmetry,
       version: "0.1.0",
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -12,10 +12,10 @@ defmodule Notify.MixProject do
     ]
   end
 
-  # Notify.Application starts the supervision tree.
+  # Meowmetry.Application starts the supervision tree.
   def application do
     [
-      mod: {Notify.Application, []},
+      mod: {Meowmetry.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end

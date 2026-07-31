@@ -1,4 +1,4 @@
-defmodule Notify.Kafka.Producer do
+defmodule Meowmetry.Kafka.Producer do
   @moduledoc """
   Publishes every generated signal to Kafka so interns can practice writing
   consumers in any language.
@@ -14,7 +14,7 @@ defmodule Notify.Kafka.Producer do
   require Logger
 
   @name __MODULE__
-  @client :notify_kafka_client
+  @client :meowmetry_kafka_client
   @retry_ms 3_000
   @partitions 3
 
@@ -28,13 +28,13 @@ defmodule Notify.Kafka.Producer do
 
   @impl true
   def init(_opts) do
-    cfg = Application.get_env(:notify, :kafka, [])
+    cfg = Application.get_env(:meowmetry, :kafka, [])
 
     state = %{
       enabled: Keyword.get(cfg, :enabled, true),
       brokers: Keyword.get(cfg, :brokers, [{"localhost", 9092}]),
       topic: Keyword.get(cfg, :topic, "signals"),
-      type: Notify.Transports.type(:kafka),
+      type: Meowmetry.Transports.type(:kafka),
       connected: false,
       published: 0
     }

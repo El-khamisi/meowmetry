@@ -1,4 +1,4 @@
-defmodule NotifyWeb.ErrorJSON do
+defmodule MeowmetryWeb.ErrorJSON do
   @moduledoc false
 
   # Renders "404.json", "500.json", etc. into a small JSON body.

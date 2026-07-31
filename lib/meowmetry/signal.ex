@@ -1,4 +1,4 @@
-defmodule Notify.Signal do
+defmodule Meowmetry.Signal do
   @moduledoc """
   A single synthetic observability signal.
 

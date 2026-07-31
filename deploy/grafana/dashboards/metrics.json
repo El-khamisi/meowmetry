@@ -1,7 +1,7 @@
 {
-  "uid": "signalyard-metrics",
-  "title": "Signal Yard — Metrics (VictoriaMetrics)",
-  "tags": ["signal-yard", "metrics"],
+  "uid": "meowmetry-metrics",
+  "title": "Meowmetry — Metrics (VictoriaMetrics)",
+  "tags": ["meowmetry", "metrics"],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
@@ -13,7 +13,7 @@
         "name": "service",
         "type": "query",
         "datasource": { "type": "prometheus", "uid": "victoriametrics" },
-        "query": "label_values(signalyard_rps, resource)",
+        "query": "label_values(meowmetry_rps, resource)",
         "refresh": 2,
         "includeAll": true,
         "multi": true,
@@ -33,7 +33,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "victoriametrics" },
-          "expr": "avg by (resource) (signalyard_http_latency_ms{resource=~\"$service\"})",
+          "expr": "avg by (resource) (meowmetry_http_latency_ms{resource=~\"$service\"})",
           "legendFormat": "{{resource}}"
         }
       ]
@@ -49,7 +49,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "victoriametrics" },
-          "expr": "avg by (resource) (signalyard_error_rate{resource=~\"$service\"})",
+          "expr": "avg by (resource) (meowmetry_error_rate{resource=~\"$service\"})",
           "legendFormat": "{{resource}}"
         }
       ]
@@ -65,7 +65,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "victoriametrics" },
-          "expr": "sum by (resource) (signalyard_rps{resource=~\"$service\"})",
+          "expr": "sum by (resource) (meowmetry_rps{resource=~\"$service\"})",
           "legendFormat": "{{resource}}"
         }
       ]
@@ -81,7 +81,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "victoriametrics" },
-          "expr": "avg by (resource) (signalyard_cpu_percent{resource=~\"$service\"})",
+          "expr": "avg by (resource) (meowmetry_cpu_percent{resource=~\"$service\"})",
           "legendFormat": "{{resource}}"
         }
       ]
@@ -110,7 +110,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "victoriametrics" },
-          "expr": "avg(signalyard_error_rate)"
+          "expr": "avg(meowmetry_error_rate)"
         }
       ]
     },
@@ -125,7 +125,7 @@
         {
           "refId": "A",
           "datasource": { "type": "prometheus", "uid": "victoriametrics" },
-          "expr": "avg by (resource) (signalyard_mem_mb{resource=~\"$service\"})",
+          "expr": "avg by (resource) (meowmetry_mem_mb{resource=~\"$service\"})",
           "legendFormat": "{{resource}}"
         }
       ]

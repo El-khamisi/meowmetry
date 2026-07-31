@@ -1,4 +1,4 @@
-defmodule NotifyWeb.SseController do
+defmodule MeowmetryWeb.SseController do
   @moduledoc """
   Transport 2 — Server-Sent Events.
 
@@ -18,11 +18,11 @@ defmodule NotifyWeb.SseController do
   require Logger
 
   @keepalive_ms 15_000
-  @type_ Notify.Transports.type(:sse)
+  @type_ Meowmetry.Transports.type(:sse)
 
   def stream(conn, _params) do
-    topic = Notify.Generator.topic(@type_)
-    Phoenix.PubSub.subscribe(Notify.PubSub, topic)
+    topic = Meowmetry.Generator.topic(@type_)
+    Phoenix.PubSub.subscribe(Meowmetry.PubSub, topic)
 
     conn =
       conn

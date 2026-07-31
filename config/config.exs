@@ -1,6 +1,6 @@
 import Config
 
-config :notify,
+config :meowmetry,
   # How often the generator emits a new signal (jittered around this value).
   generator_interval_ms: 700,
   # How many recent signals the long-poll buffer keeps.
@@ -8,11 +8,11 @@ config :notify,
   # Kafka topic signals are published to.
   kafka_topic: "signals"
 
-config :notify, NotifyWeb.Endpoint,
+config :meowmetry, MeowmetryWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
-  render_errors: [formats: [json: NotifyWeb.ErrorJSON], layout: false],
-  pubsub_server: Notify.PubSub
+  render_errors: [formats: [json: MeowmetryWeb.ErrorJSON], layout: false],
+  pubsub_server: Meowmetry.PubSub
 
 config :phoenix, :json_library, Jason
 

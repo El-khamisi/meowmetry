@@ -12,7 +12,7 @@ Defaults:
 VictoriaMetrics ingests OTLP natively at <base>/v1/metrics and serves a
 Prometheus-compatible query API on :8428, so Grafana reads it as a Prometheus
 datasource. Each `metric` signal becomes an OTLP Gauge data point:
-    * instrument name = signalyard_<sanitised name>  (http.latency_ms -> signalyard_http_latency_ms),
+    * instrument name = meowmetry_<sanitised name>  (http.latency_ms -> meowmetry_http_latency_ms),
     * unit            = the signal's `unit`,
     * attributes      = resource / env / region / host  (become labels).
 """
@@ -36,17 +36,17 @@ reader = PeriodicExportingMetricReader(
 )
 provider = MeterProvider(
     metric_readers=[reader],
-    resource=Resource.create({"service.name": "signal-yard"}),
+    resource=Resource.create({"service.name": "meowmetry"}),
 )
-meter = provider.get_meter("signal-yard.metrics-bridge")
+meter = provider.get_meter("meowmetry.metrics-bridge")
 
 # One synchronous Gauge instrument per metric name, created on first sight.
 _gauges = {}
 
 
 def prom_name(name):
-    # signalyard_ + Prometheus-safe name, e.g. http.latency_ms -> signalyard_http_latency_ms
-    return "signalyard_" + re.sub(r"[^a-zA-Z0-9_]", "_", name)
+    # meowmetry_ + Prometheus-safe name, e.g. http.latency_ms -> meowmetry_http_latency_ms
+    return "meowmetry_" + re.sub(r"[^a-zA-Z0-9_]", "_", name)
 
 
 def gauge_for(name, unit):

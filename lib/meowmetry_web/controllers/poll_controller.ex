@@ -1,4 +1,4 @@
-defmodule NotifyWeb.PollController do
+defmodule MeowmetryWeb.PollController do
   @moduledoc """
   Transport 1 — Long polling.
 
@@ -17,27 +17,27 @@ defmodule NotifyWeb.PollController do
   use Phoenix.Controller, formats: [:json]
   require Logger
 
-  alias Notify.Buffer
+  alias Meowmetry.Buffer
 
   @wait_ms 25_000
   # Once the first signal arrives, keep batching for a short window.
   @drain_ms 250
 
-  # This channel carries only one signal type (see Notify.Transports).
-  @type_ Notify.Transports.type(:poll)
+  # This channel carries only one signal type (see Meowmetry.Transports).
+  @type_ Meowmetry.Transports.type(:poll)
 
   def poll(conn, params) do
-    topic = Notify.Generator.topic(@type_)
+    topic = Meowmetry.Generator.topic(@type_)
 
     # Subscribe *before* reading the buffer so a signal produced in between is
     # never lost — we'll just receive it over PubSub instead.
-    Phoenix.PubSub.subscribe(Notify.PubSub, topic)
+    Phoenix.PubSub.subscribe(Meowmetry.PubSub, topic)
     {all, latest} = Buffer.since(params["cursor"])
     buffered = Enum.filter(all, &(&1["type"] == @type_))
 
     signals = if buffered != [], do: buffered, else: collect(@wait_ms)
 
-    Phoenix.PubSub.unsubscribe(Notify.PubSub, topic)
+    Phoenix.PubSub.unsubscribe(Meowmetry.PubSub, topic)
 
     cursor =
       case List.last(signals) do
@@ -51,7 +51,7 @@ defmodule NotifyWeb.PollController do
   end
 
   def types(conn, _params) do
-    json(conn, %{types: Notify.Signal.types()})
+    json(conn, %{types: Meowmetry.Signal.types()})
   end
 
   # Block until the first signal (or timeout), then batch anything that arrives

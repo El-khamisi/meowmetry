@@ -1,6 +1,6 @@
 # Hand-written to match `protoc --elixir_out=plugins=grpc` output for
 # priv/protos/signals.proto. Regenerate with protoc if you change the proto.
-defmodule Notify.Grpc.SubscribeRequest do
+defmodule Meowmetry.Grpc.SubscribeRequest do
   @moduledoc false
   use Protobuf, syntax: :proto3, protoc_gen_elixir_version: "0.13.0"
 
@@ -8,7 +8,7 @@ defmodule Notify.Grpc.SubscribeRequest do
   field :services, 2, repeated: true, type: :string
 end
 
-defmodule Notify.Grpc.Signal do
+defmodule Meowmetry.Grpc.Signal do
   @moduledoc false
   use Protobuf, syntax: :proto3, protoc_gen_elixir_version: "0.13.0"
 
@@ -21,14 +21,14 @@ defmodule Notify.Grpc.Signal do
   field :payload_json, 7, type: :string, json_name: "payloadJson"
 end
 
-defmodule Notify.Grpc.SignalStream.Service do
+defmodule Meowmetry.Grpc.SignalStream.Service do
   @moduledoc false
-  use GRPC.Service, name: "notify.SignalStream", protoc_gen_elixir_version: "0.13.0"
+  use GRPC.Service, name: "meowmetry.SignalStream", protoc_gen_elixir_version: "0.13.0"
 
-  rpc :Subscribe, Notify.Grpc.SubscribeRequest, stream(Notify.Grpc.Signal)
+  rpc :Subscribe, Meowmetry.Grpc.SubscribeRequest, stream(Meowmetry.Grpc.Signal)
 end
 
-defmodule Notify.Grpc.SignalStream.Stub do
+defmodule Meowmetry.Grpc.SignalStream.Stub do
   @moduledoc false
-  use GRPC.Stub, service: Notify.Grpc.SignalStream.Service
+  use GRPC.Stub, service: Meowmetry.Grpc.SignalStream.Service
 end

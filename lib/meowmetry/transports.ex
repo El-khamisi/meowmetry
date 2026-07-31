@@ -1,4 +1,4 @@
-defmodule Notify.Transports do
+defmodule Meowmetry.Transports do
   @moduledoc """
   Which signal **type** each transport carries.
 

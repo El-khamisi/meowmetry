@@ -1,7 +1,7 @@
 {
-  "uid": "signalyard-traces",
-  "title": "Signal Yard — Traces (Tempo)",
-  "tags": ["signal-yard", "traces"],
+  "uid": "meowmetry-traces",
+  "title": "Meowmetry — Traces (Tempo)",
+  "tags": ["meowmetry", "traces"],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
