@@ -30,7 +30,7 @@ services:
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     ports:
-      - "8080:8080"
+      - "8085:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: meowmetry
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
@@ -48,11 +48,11 @@ services:
       caddy.encode: zstd gzip
       caddy.log:
 
-  # ---------------------------------------------------------------------------
-  # The signal generator itself.
-  #   http://localhost:4000  -> dashboard + long-poll + SSE + WebSocket
-  #   localhost:50051        -> gRPC
-  # ---------------------------------------------------------------------------
+        # ---------------------------------------------------------------------------
+        # The signal generator itself.
+        #   http://localhost:4000  -> dashboard + long-poll + SSE + WebSocket
+        #   localhost:50051        -> gRPC
+        # ---------------------------------------------------------------------------
   app:
     build: .
     ports:
@@ -77,27 +77,27 @@ services:
       caddy_0.0_reverse_proxy: "{{upstreams 4000}}"
       caddy_0.0_reverse_proxy.0_header_up: X-Real-IP {remote}
       caddy_0.encode: zstd gzip
-      caddy_0.log:
-      # gRPC: proxied over h2c (HTTP/2 cleartext) to the backend
+      caddy_0.log: # gRPC: proxied over h2c (HTTP/2 cleartext) to the backend
+
       caddy_1: meowmetry-grpc.dev1.mnt.group
       caddy_1.0_reverse_proxy: "{{upstreams h2c 50051}}"
       caddy_1.0_reverse_proxy.0_header_up: X-Real-IP {remote}
       caddy_1.log:
 
-  # ---------------------------------------------------------------------------
-  # Observability stack — direct OTLP, no collector.
-  #
-  #   metrics (WS)   -> otel_metrics_bridge.py -- OTLP push --> VictoriaMetrics
-  #   traces  (poll) -> tempo_bridge.py        -- OTLP push --> Tempo
-  #                                                             \--> Grafana <--/
-  #
-  # Both VictoriaMetrics and Tempo ingest OTLP natively, so each bridge pushes
-  # straight to its store — no OpenTelemetry Collector and no scrape hop.
-  #   grafana : reads VictoriaMetrics + Tempo (http://localhost:3000, anon admin)
-  # ---------------------------------------------------------------------------
+        # ---------------------------------------------------------------------------
+        # Observability stack — direct OTLP, no collector.
+        #
+        #   metrics (WS)   -> otel_metrics_bridge.py -- OTLP push --> VictoriaMetrics
+        #   traces  (poll) -> tempo_bridge.py        -- OTLP push --> Tempo
+        #                                                             \--> Grafana <--/
+        #
+        # Both VictoriaMetrics and Tempo ingest OTLP natively, so each bridge pushes
+        # straight to its store — no OpenTelemetry Collector and no scrape hop.
+        #   grafana : reads VictoriaMetrics + Tempo (http://localhost:3000, anon admin)
+        # ---------------------------------------------------------------------------
 
-  # Stores metrics. Ingests OTLP at /opentelemetry/v1/metrics; Prometheus-
-  # compatible query API on :8428 (Grafana talks to it as a Prometheus source).
+        # Stores metrics. Ingests OTLP at /opentelemetry/v1/metrics; Prometheus-
+        # compatible query API on :8428 (Grafana talks to it as a Prometheus source).
   victoriametrics:
     image: victoriametrics/victoria-metrics:v1.102.1
     command: [ "--retentionPeriod=1d" ]
@@ -115,14 +115,14 @@ services:
       caddy.encode: zstd gzip
       caddy.log:
 
-  # Tempo stores traces; the bridge pushes them in over OTLP (gRPC 4317 / HTTP 4318).
+        # Tempo stores traces; the bridge pushes them in over OTLP (gRPC 4317 / HTTP 4318).
   tempo:
     image: grafana/tempo:2.6.1
     command: [ "-config.file=/etc/tempo.yaml" ]
     ports:
-      - "3200:3200"   # Tempo query API (Grafana datasource)
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
+      - "3200:3200" # Tempo query API (Grafana datasource)
+      - "4317:4317" # OTLP gRPC
+      - "4318:4318" # OTLP HTTP
     volumes:
       - ./deploy/tempo/tempo.yaml:/etc/tempo.yaml:ro
     networks:
@@ -135,44 +135,44 @@ services:
       caddy.encode: zstd gzip
       caddy.log:
 
-  # ---------------------------------------------------------------------------
-  # INTERN EXERCISE: the OTLP bridges are not provided. Implement a bridge that
-  # reads each signal stream and pushes it to its store over OTLP, then uncomment
-  # the services below (and drop your scripts in ./clients) to wire them in.
-  #
-  #   metrics (WS)   -> your metrics bridge -- OTLP push --> VictoriaMetrics
-  #   trace   (poll) -> your traces  bridge -- OTLP push --> Tempo
-  #
-  # tempo-bridge:
-  #   image: python:3.12-slim
-  #   working_dir: /clients
-  #   volumes:
-  #     - ./clients:/clients:ro
-  #   command:
-  #     - bash
-  #     - -lc
-  #     - "pip install -q requests opentelemetry-sdk opentelemetry-exporter-otlp-proto-http &&
-  #        python tempo_bridge.py http://app:4000/api/poll http://tempo:4318"
-  #   depends_on:
-  #     - app
-  #     - tempo
-  #
-  # metrics-bridge:
-  #   image: python:3.12-slim
-  #   working_dir: /clients
-  #   volumes:
-  #     - ./clients:/clients:ro
-  #   command:
-  #     - bash
-  #     - -lc
-  #     - "pip install -q websockets opentelemetry-sdk opentelemetry-exporter-otlp-proto-http &&
-  #        python otel_metrics_bridge.py ws://app:4000/ws http://victoriametrics:8428/opentelemetry"
-  #   depends_on:
-  #     - app
-  #     - victoriametrics
-  # ---------------------------------------------------------------------------
+        # ---------------------------------------------------------------------------
+        # INTERN EXERCISE: the OTLP bridges are not provided. Implement a bridge that
+        # reads each signal stream and pushes it to its store over OTLP, then uncomment
+        # the services below (and drop your scripts in ./clients) to wire them in.
+        #
+        #   metrics (WS)   -> your metrics bridge -- OTLP push --> VictoriaMetrics
+        #   trace   (poll) -> your traces  bridge -- OTLP push --> Tempo
+        #
+        # tempo-bridge:
+        #   image: python:3.12-slim
+        #   working_dir: /clients
+        #   volumes:
+        #     - ./clients:/clients:ro
+        #   command:
+        #     - bash
+        #     - -lc
+        #     - "pip install -q requests opentelemetry-sdk opentelemetry-exporter-otlp-proto-http &&
+        #        python tempo_bridge.py http://app:4000/api/poll http://tempo:4318"
+        #   depends_on:
+        #     - app
+        #     - tempo
+        #
+        # metrics-bridge:
+        #   image: python:3.12-slim
+        #   working_dir: /clients
+        #   volumes:
+        #     - ./clients:/clients:ro
+        #   command:
+        #     - bash
+        #     - -lc
+        #     - "pip install -q websockets opentelemetry-sdk opentelemetry-exporter-otlp-proto-http &&
+        #        python otel_metrics_bridge.py ws://app:4000/ws http://victoriametrics:8428/opentelemetry"
+        #   depends_on:
+        #     - app
+        #     - victoriametrics
+        # ---------------------------------------------------------------------------
 
-  # Pre-wired with VictoriaMetrics + Tempo datasources and starter dashboards.
+        # Pre-wired with VictoriaMetrics + Tempo datasources and starter dashboards.
   grafana:
     image: grafana/grafana:11.2.0
     ports:
