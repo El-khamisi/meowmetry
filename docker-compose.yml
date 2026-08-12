@@ -93,35 +93,42 @@ services:
     volumes:
       - ./deploy/tempo/tempo.yaml:/etc/tempo.yaml:ro
 
-  # Bridges the long-poll `trace` stream straight to Tempo as OTLP spans.
-  tempo-bridge:
-    image: python:3.12-slim
-    working_dir: /clients
-    volumes:
-      - ./clients:/clients:ro
-    command:
-      - bash
-      - -lc
-      - "pip install -q requests opentelemetry-sdk opentelemetry-exporter-otlp-proto-http &&
-         python tempo_bridge.py http://app:4000/api/poll http://tempo:4318"
-    depends_on:
-      - app
-      - tempo
-
-  # Bridges the WebSocket `metric` stream straight to VictoriaMetrics as OTLP gauges.
-  metrics-bridge:
-    image: python:3.12-slim
-    working_dir: /clients
-    volumes:
-      - ./clients:/clients:ro
-    command:
-      - bash
-      - -lc
-      - "pip install -q websockets opentelemetry-sdk opentelemetry-exporter-otlp-proto-http &&
-         python otel_metrics_bridge.py ws://app:4000/ws http://victoriametrics:8428/opentelemetry"
-    depends_on:
-      - app
-      - victoriametrics
+  # ---------------------------------------------------------------------------
+  # INTERN EXERCISE: the OTLP bridges are not provided. Implement a bridge that
+  # reads each signal stream and pushes it to its store over OTLP, then uncomment
+  # the services below (and drop your scripts in ./clients) to wire them in.
+  #
+  #   metrics (WS)   -> your metrics bridge -- OTLP push --> VictoriaMetrics
+  #   trace   (poll) -> your traces  bridge -- OTLP push --> Tempo
+  #
+  # tempo-bridge:
+  #   image: python:3.12-slim
+  #   working_dir: /clients
+  #   volumes:
+  #     - ./clients:/clients:ro
+  #   command:
+  #     - bash
+  #     - -lc
+  #     - "pip install -q requests opentelemetry-sdk opentelemetry-exporter-otlp-proto-http &&
+  #        python tempo_bridge.py http://app:4000/api/poll http://tempo:4318"
+  #   depends_on:
+  #     - app
+  #     - tempo
+  #
+  # metrics-bridge:
+  #   image: python:3.12-slim
+  #   working_dir: /clients
+  #   volumes:
+  #     - ./clients:/clients:ro
+  #   command:
+  #     - bash
+  #     - -lc
+  #     - "pip install -q websockets opentelemetry-sdk opentelemetry-exporter-otlp-proto-http &&
+  #        python otel_metrics_bridge.py ws://app:4000/ws http://victoriametrics:8428/opentelemetry"
+  #   depends_on:
+  #     - app
+  #     - victoriametrics
+  # ---------------------------------------------------------------------------
 
   # Pre-wired with VictoriaMetrics + Tempo datasources and starter dashboards.
   grafana:

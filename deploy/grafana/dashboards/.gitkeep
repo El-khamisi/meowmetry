@@ -1,0 +1,2 @@
+# Interns: drop your Grafana dashboard JSON here.
+# Provisioning loads every *.json in this directory into Grafana.

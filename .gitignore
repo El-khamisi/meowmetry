@@ -18,3 +18,11 @@ erl_crash.dump
 # Python bytecode from clients/
 __pycache__/
 *.pyc
+
+# ---------------------------------------------------------------------------
+# Intern solutions — kept locally, never committed. My reference copies of the
+# exercises live under solutions_local/ (clients per transport, the OTLP
+# bridges, and the Grafana dashboards). Interns implement their own versions in
+# clients/ and deploy/grafana/dashboards/, which ARE tracked.
+# ---------------------------------------------------------------------------
+solutions_*/
