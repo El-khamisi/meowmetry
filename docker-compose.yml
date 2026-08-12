@@ -38,6 +38,15 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    networks:
+      default:
+      caddy-ingress:
+    labels:
+      caddy: meowmetry-kafkaui.dev1.mnt.group
+      caddy.0_reverse_proxy: "{{upstreams 8080}}"
+      caddy.0_reverse_proxy.0_header_up: X-Real-IP {remote}
+      caddy.encode: zstd gzip
+      caddy.log:
 
   # ---------------------------------------------------------------------------
   # The signal generator itself.
@@ -59,6 +68,21 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    networks:
+      default:
+      caddy-ingress:
+    labels:
+      # HTTP: dashboard + long-poll + SSE + WebSocket
+      caddy_0: meowmetry-app.dev1.mnt.group
+      caddy_0.0_reverse_proxy: "{{upstreams 4000}}"
+      caddy_0.0_reverse_proxy.0_header_up: X-Real-IP {remote}
+      caddy_0.encode: zstd gzip
+      caddy_0.log:
+      # gRPC: proxied over h2c (HTTP/2 cleartext) to the backend
+      caddy_1: meowmetry-grpc.dev1.mnt.group
+      caddy_1.0_reverse_proxy: "{{upstreams h2c 50051}}"
+      caddy_1.0_reverse_proxy.0_header_up: X-Real-IP {remote}
+      caddy_1.log:
 
   # ---------------------------------------------------------------------------
   # Observability stack — direct OTLP, no collector.
@@ -81,6 +105,15 @@ services:
       - "8428:8428"
     depends_on:
       - app
+    networks:
+      default:
+      caddy-ingress:
+    labels:
+      caddy: meowmetry-victoriametrics.dev1.mnt.group
+      caddy.0_reverse_proxy: "{{upstreams 8428}}"
+      caddy.0_reverse_proxy.0_header_up: X-Real-IP {remote}
+      caddy.encode: zstd gzip
+      caddy.log:
 
   # Tempo stores traces; the bridge pushes them in over OTLP (gRPC 4317 / HTTP 4318).
   tempo:
@@ -92,6 +125,15 @@ services:
       - "4318:4318"   # OTLP HTTP
     volumes:
       - ./deploy/tempo/tempo.yaml:/etc/tempo.yaml:ro
+    networks:
+      default:
+      caddy-ingress:
+    labels:
+      caddy: meowmetry-tempo.dev1.mnt.group
+      caddy.0_reverse_proxy: "{{upstreams 3200}}"
+      caddy.0_reverse_proxy.0_header_up: X-Real-IP {remote}
+      caddy.encode: zstd gzip
+      caddy.log:
 
   # ---------------------------------------------------------------------------
   # INTERN EXERCISE: the OTLP bridges are not provided. Implement a bridge that
@@ -146,3 +188,17 @@ services:
     depends_on:
       - victoriametrics
       - tempo
+    networks:
+      default:
+      caddy-ingress:
+    labels:
+      caddy: meowmetry-grafana.dev1.mnt.group
+      caddy.0_reverse_proxy: "{{upstreams 3000}}"
+      caddy.0_reverse_proxy.0_header_up: X-Real-IP {remote}
+      caddy.encode: zstd gzip
+      caddy.log:
+
+networks:
+  # Pre-existing network that the caddy-docker-proxy ingress watches for labels.
+  caddy-ingress:
+    external: true
