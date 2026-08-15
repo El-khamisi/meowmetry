@@ -20,7 +20,15 @@ defmodule MeowmetryWeb.SseController do
   @keepalive_ms 15_000
   @type_ Meowmetry.Transports.type(:sse)
 
+  # If a client holds the connection open but stops reading, `chunk/2` back-pressures
+  # and PubSub signals pile up in this process's mailbox. Cap the heap so a stuck
+  # consumer kills only its own connection instead of the whole node.
+  # Unit is words (~8 bytes on 64-bit), so this is roughly 400 MB — a runaway
+  # backstop, far above anything a healthy connection needs.
+  @max_heap_words 50_000_000
+
   def stream(conn, _params) do
+    Process.flag(:max_heap_size, @max_heap_words)
     topic = Meowmetry.Generator.topic(@type_)
     Phoenix.PubSub.subscribe(Meowmetry.PubSub, topic)
 
