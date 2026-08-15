@@ -23,6 +23,16 @@ defmodule Meowmetry.Kafka.Producer do
   @doc "Fire-and-forget publish of a signal map. No-op until Kafka is connected."
   def publish(signal), do: GenServer.cast(@name, {:publish, signal})
 
+  @doc """
+  Turn publishing on or off at runtime (the dashboard switch).
+
+  Disabling stops new messages from hitting the broker so the topic's log
+  doesn't grow — useful to stop Kafka from filling up the disk without
+  restarting the app. Re-enabling reconnects if needed.
+  """
+  def set_enabled(enabled) when is_boolean(enabled),
+    do: GenServer.call(@name, {:set_enabled, enabled})
+
   @doc "Current producer status for the dashboard."
   def status, do: GenServer.call(@name, :status)
 
@@ -81,7 +91,24 @@ defmodule Meowmetry.Kafka.Producer do
     {:reply, status, state}
   end
 
+  def handle_call({:set_enabled, true}, _from, %{enabled: false} = state) do
+    Logger.info("Kafka enabled at runtime — publishing resumes")
+    unless state.connected, do: send(self(), :connect)
+    {:reply, :ok, %{state | enabled: true}}
+  end
+
+  def handle_call({:set_enabled, false}, _from, %{enabled: true} = state) do
+    Logger.info("Kafka disabled at runtime — publishing paused (topic stops growing)")
+    {:reply, :ok, %{state | enabled: false}}
+  end
+
+  # Already in the requested state — nothing to do.
+  def handle_call({:set_enabled, _}, _from, state), do: {:reply, :ok, state}
+
   @impl true
+  # Paused: drop signals so the broker's log stops growing.
+  def handle_cast({:publish, _signal}, %{enabled: false} = state), do: {:noreply, state}
+
   def handle_cast({:publish, _signal}, %{connected: false} = state), do: {:noreply, state}
 
   # This channel only carries its assigned type — ignore everything else.

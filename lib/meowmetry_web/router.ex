@@ -11,6 +11,8 @@ defmodule MeowmetryWeb.Router do
     get "/", PageController, :index
     get "/health", PageController, :health
     get "/api/status", PageController, :status
+    # Runtime on/off switch for the Kafka producer (dashboard button).
+    post "/api/kafka/enabled", PageController, :set_kafka
 
     # Transport 1: long polling.
     get "/api/poll", PollController, :poll

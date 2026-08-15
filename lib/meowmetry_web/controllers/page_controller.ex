@@ -26,6 +26,13 @@ defmodule MeowmetryWeb.PageController do
     })
   end
 
+  @doc "Toggle the Kafka producer on/off at runtime (dashboard switch)."
+  def set_kafka(conn, params) do
+    enabled = params["enabled"] in [true, "true"]
+    :ok = Meowmetry.Kafka.Producer.set_enabled(enabled)
+    json(conn, Meowmetry.Kafka.Producer.status())
+  end
+
   def index(conn, _params) do
     conn
     |> put_resp_content_type("text/html")
@@ -98,6 +105,13 @@ defmodule MeowmetryWeb.PageController do
         .type.event { color: #ff9db1; }
         .sev-error { color: #ff6b6b; } .sev-warn { color: #ffd479; }
         a { color: #8fd0ff; }
+        .switch { font: inherit; font-size: 11px; cursor: pointer; margin-left: 8px;
+                  padding: 2px 10px; border-radius: 999px; border: 1px solid #1c2530;
+                  background: #182029; color: #d6dee8; }
+        .switch:hover { border-color: #2a3646; }
+        .switch.on { color: #6ee7a8; border-color: #234; }
+        .switch.off { color: #ff9db1; }
+        .switch:disabled { opacity: .5; cursor: default; }
       </style>
     </head>
     <body>
@@ -142,7 +156,7 @@ defmodule MeowmetryWeb.PageController do
 
         <!-- Kafka (server-reported) -->
         <div class="card" id="card-kafka">
-          <div class="head"><span class="dot" id="dot-kafka"></span><h2>Kafka</h2><span class="chip type #{Meowmetry.Transports.type(:kafka)}">#{Meowmetry.Transports.type(:kafka)}</span><code id="code-kafka">topic: signals</code></div>
+          <div class="head"><span class="dot" id="dot-kafka"></span><h2>Kafka</h2><span class="chip type #{Meowmetry.Transports.type(:kafka)}">#{Meowmetry.Transports.type(:kafka)}</span><code id="code-kafka">topic: signals</code><button id="toggle-kafka" class="switch" disabled>…</button></div>
           <div class="metric"><span class="rate" id="rate-kafka">0.0</span><small>msg/s produced</small></div>
           <div class="sub"><b id="count-kafka">0</b> published · <span id="state-kafka">connecting…</span></div>
           <div class="last" id="last-kafka">consume it: <code>clients/kafka_consumer.py</code></div>
@@ -223,6 +237,28 @@ defmodule MeowmetryWeb.PageController do
           ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type === 'hello') return; onMsg('ws', m); };
         })();
 
+        // Kafka on/off switch. `kafkaEnabled` mirrors the last server status so
+        // the click knows which way to flip; null until the first status arrives.
+        let kafkaEnabled = null;
+        (function wireKafkaToggle() {
+          const btn = $('toggle-kafka');
+          btn.addEventListener('click', async () => {
+            if (kafkaEnabled == null) return;
+            btn.disabled = true;
+            try {
+              await fetch('/api/kafka/enabled?enabled=' + (!kafkaEnabled), { method: 'POST' });
+            } catch (e) { btn.disabled = false; }
+          });
+        })();
+
+        function renderKafkaToggle(enabled) {
+          kafkaEnabled = enabled;
+          const btn = $('toggle-kafka');
+          btn.disabled = false;
+          btn.className = 'switch ' + (enabled ? 'on' : 'off');
+          btn.textContent = enabled ? 'on · click to pause' : 'off · click to resume';
+        }
+
         // --- Transports 4 & 5: gRPC + Kafka, reported by the server ---
         (async function statusLoop() {
           let prevGen = null, prevKafka = null, prevT = now();
@@ -245,7 +281,8 @@ defmodule MeowmetryWeb.PageController do
               const k = s.kafka;
               $('code-kafka').textContent = 'topic: ' + k.topic;
               $('count-kafka').textContent = k.published;
-              if (!k.enabled) { setDot('kafka', 'disabled'); setState('kafka', 'disabled'); }
+              renderKafkaToggle(k.enabled);
+              if (!k.enabled) { setDot('kafka', 'disabled'); setState('kafka', 'paused'); }
               else if (k.connected) { setDot('kafka', 'live'); setState('kafka', 'broker ' + k.brokers.join(',')); }
               else { setDot('kafka', 'connecting'); setState('kafka', 'connecting to broker…'); }
               if (prevKafka != null && dt > 0)
