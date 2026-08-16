@@ -6,6 +6,7 @@ services:
   # ---------------------------------------------------------------------------
   kafka:
     image: apache/kafka:3.9.0
+    restart: unless-stopped
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -29,6 +30,7 @@ services:
   # Web UI to eyeball topics/messages: http://localhost:8080
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
+    restart: unless-stopped
     ports:
       - "8085:8080"
     environment:
@@ -55,6 +57,7 @@ services:
         # ---------------------------------------------------------------------------
   app:
     build: .
+    restart: unless-stopped
     ports:
       - "4000:4000"
       - "50051:50051"
@@ -100,6 +103,7 @@ services:
         # compatible query API on :8428 (Grafana talks to it as a Prometheus source).
   victoriametrics:
     image: victoriametrics/victoria-metrics:v1.102.1
+    restart: unless-stopped
     command: [ "--retentionPeriod=1d" ]
     ports:
       - "8428:8428"
@@ -118,6 +122,7 @@ services:
         # Tempo stores traces; the bridge pushes them in over OTLP (gRPC 4317 / HTTP 4318).
   tempo:
     image: grafana/tempo:2.6.1
+    restart: unless-stopped
     command: [ "-config.file=/etc/tempo.yaml" ]
     ports:
       - "3200:3200" # Tempo query API (Grafana datasource)
@@ -175,6 +180,7 @@ services:
         # Pre-wired with VictoriaMetrics + Tempo datasources and starter dashboards.
   grafana:
     image: grafana/grafana:11.2.0
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
