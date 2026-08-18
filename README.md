@@ -96,7 +96,10 @@ clients/sse.sh http://localhost:4000
 ```
 
 ### 3. WebSocket → `metric` — `ws://localhost:4000/ws`
-A **plain** WebSocket (not a Phoenix Channel) so any library works.
+A **plain** WebSocket (not a Phoenix Channel) so any library works. The server
+idles out a silent socket after 60s; send an app-level `{"type":"ping"}` text
+frame periodically and it replies `{"type":"pong"}` to keep the connection
+alive (the browser JS API can't send protocol-level ping frames).
 
 ```bash
 pip install websockets

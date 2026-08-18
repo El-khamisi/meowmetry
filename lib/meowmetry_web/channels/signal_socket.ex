@@ -27,7 +27,21 @@ defmodule MeowmetryWeb.SignalSocket do
     {:push, {:text, hello}, %{topic: topic}}
   end
 
+  # Browsers can't send protocol-level ping frames from JS, so clients keep the
+  # socket alive with an app-level `{"type":"ping"}` text frame; we echo a pong.
+  # Any other inbound frame is ignored — this channel is push-only.
   @impl true
+  def handle_in({"ping", [opcode: :text]}, state) do
+    {:push, {:text, pong()}, state}
+  end
+
+  def handle_in({payload, [opcode: :text]}, state) do
+    case Jason.decode(payload) do
+      {:ok, %{"type" => "ping"}} -> {:push, {:text, pong()}, state}
+      _ -> {:ok, state}
+    end
+  end
+
   def handle_in(_frame, state), do: {:ok, state}
 
   @impl true
@@ -39,4 +53,6 @@ defmodule MeowmetryWeb.SignalSocket do
 
   @impl true
   def terminate(_reason, _state), do: :ok
+
+  defp pong, do: Jason.encode!(%{"type" => "pong"})
 end

@@ -232,9 +232,25 @@ defmodule MeowmetryWeb.PageController do
         (function wsConnect() {
           const proto = location.protocol === 'https:' ? 'wss' : 'ws';
           const ws = new WebSocket(proto + '://' + location.host + '/ws');
-          ws.onopen = () => { setDot('ws', 'live'); setState('ws', 'open'); };
-          ws.onclose = () => { setDot('ws', 'error'); setState('ws', 'reconnecting'); setTimeout(wsConnect, 1000); };
-          ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type === 'hello') return; onMsg('ws', m); };
+          // App-level heartbeat: the JS WebSocket API can't send protocol ping
+          // frames, so send a ping text frame well inside the server's 60s idle
+          // timeout to keep the socket alive even if metrics briefly stall.
+          let ping = null;
+          ws.onopen = () => {
+            setDot('ws', 'live'); setState('ws', 'open');
+            ping = setInterval(() => {
+              if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'ping' }));
+            }, 25000);
+          };
+          ws.onclose = () => {
+            clearInterval(ping);
+            setDot('ws', 'error'); setState('ws', 'reconnecting'); setTimeout(wsConnect, 1000);
+          };
+          ws.onmessage = (e) => {
+            const m = JSON.parse(e.data);
+            if (m.type === 'hello' || m.type === 'pong') return;
+            onMsg('ws', m);
+          };
         })();
 
         // Kafka on/off switch. `kafkaEnabled` mirrors the last server status so
