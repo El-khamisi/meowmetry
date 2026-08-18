@@ -194,6 +194,7 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_FEATURE_TOGGLES_ENABLE: "traceqlMetrics"
     volumes:
+      - grafana-data:/var/lib/grafana
       - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./deploy/grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
@@ -208,6 +209,9 @@ services:
       caddy.0_reverse_proxy.0_header_up: X-Real-IP {remote}
       caddy.encode: zstd gzip
       caddy.log:
+
+volumes:
+  grafana-data:
 
 networks:
   # Pre-existing network that the caddy-docker-proxy ingress watches for labels.
