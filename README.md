@@ -27,6 +27,7 @@ Every transport carries the identical JSON shape (only its `type` differs):
 {
   "id": "sig_9f3a1c...",
   "seq": 128,
+  "type_seq": 26,
   "ts": 1752460800000,
   "type": "trace",
   "service": "checkout",
@@ -36,7 +37,9 @@ Every transport carries the identical JSON shape (only its `type` differs):
 ```
 
 `type` is one of `trace | log | metric | profile | event`, each with its own
-`payload` fields.
+`payload` fields. `seq` counts every signal globally; `type_seq` counts each
+type on its own, so a single-type channel sees a **gap-free** `1, 2, 3, …`
+sequence it can verify is in order (long polling uses it as the cursor).
 
 ---
 
@@ -72,9 +75,11 @@ Then open **http://localhost:4000** for a live dashboard, and
 Each carries **one** signal type. The mapping lives in
 [lib/meowmetry/transports.ex](lib/meowmetry/transports.ex).
 
-### 1. Long polling → `trace` — `GET /api/poll?cursor=<seq>`
-Returns every trace newer than `cursor`. If nothing is ready it holds the
-request open (~25s) until traces arrive, then returns them plus the next
+### 1. Long polling → `trace` — `GET /api/poll?cursor=<type_seq>`
+Returns every trace newer than `cursor`. The cursor is the trace channel's own
+`type_seq` (gap-free `1, 2, 3, …`), independent of the global `seq`, so the
+client can confirm it received the stream in order. If nothing is ready it holds
+the request open (~25s) until traces arrive, then returns them plus the next
 `cursor`. Omit `cursor` to start from "now".
 
 ```bash

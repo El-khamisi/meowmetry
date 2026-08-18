@@ -18,10 +18,11 @@ message SubscribeRequest {
 
 message Signal {
   string id = 1;
-  int64 seq = 2;
-  int64 ts = 3; // unix milliseconds
+  int64 seq = 2;       // global sequence across all types
+  int64 ts = 3;        // unix milliseconds
   string type = 4;
   string service = 5;
   string severity = 6;
   string payload_json = 7; // type-specific fields, JSON-encoded
+  int64 type_seq = 8;  // per-type gap-free sequence
 }

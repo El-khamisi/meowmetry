@@ -17,38 +17,43 @@ defmodule Meowmetry.Buffer do
   def put(signal), do: GenServer.cast(@name, {:put, signal})
 
   @doc """
-  Return `{signals, latest_seq}` for every signal with `seq > cursor`.
+  Return `{signals, latest_type_seq}` for every signal of `type` with
+  `type_seq > cursor`.
 
-  Pass `cursor = nil` (or a huge number) to get only future signals — the
-  returned `latest_seq` lets a fresh client start from "now".
+  The cursor is scoped to a single signal type, so it is gap-free (1,2,3,...)
+  and a client can tell it received the sequence in order. Pass `cursor = nil`
+  to get only future signals — the returned `latest_type_seq` lets a fresh
+  client start from "now".
   """
-  def since(cursor), do: GenServer.call(@name, {:since, cursor})
+  def since(type, cursor), do: GenServer.call(@name, {:since, type, cursor})
 
-  @doc "Current highest sequence number in the buffer (0 if empty)."
+  @doc "Current highest *global* sequence number in the buffer (0 if empty)."
   def latest_seq, do: GenServer.call(@name, :latest_seq)
 
   @impl true
   def init(opts) do
     max = Keyword.get(opts, :max, Application.get_env(:meowmetry, :buffer_size, 2_000))
-    {:ok, %{items: [], max: max, latest: 0}}
+    {:ok, %{items: [], max: max, latest: 0, type_latest: %{}}}
   end
 
   @impl true
   def handle_cast({:put, signal}, state) do
     items = [signal | state.items] |> Enum.take(state.max)
-    {:noreply, %{state | items: items, latest: signal["seq"]}}
+    type_latest = Map.put(state.type_latest, signal["type"], signal["type_seq"])
+    {:noreply, %{state | items: items, latest: signal["seq"], type_latest: type_latest}}
   end
 
   @impl true
-  def handle_call({:since, cursor}, _from, state) do
-    cursor = normalize(cursor, state.latest)
+  def handle_call({:since, type, cursor}, _from, state) do
+    latest = Map.get(state.type_latest, type, 0)
+    cursor = normalize(cursor, latest)
 
     newer =
       state.items
-      |> Enum.filter(&(&1["seq"] > cursor))
+      |> Enum.filter(&(&1["type"] == type and &1["type_seq"] > cursor))
       |> Enum.reverse()
 
-    {:reply, {newer, state.latest}, state}
+    {:reply, {newer, latest}, state}
   end
 
   def handle_call(:latest_seq, _from, state), do: {:reply, state.latest, state}

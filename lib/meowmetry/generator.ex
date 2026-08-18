@@ -30,7 +30,9 @@ defmodule Meowmetry.Generator do
   @impl true
   def init(_opts) do
     interval = Application.get_env(:meowmetry, :generator_interval_ms, 700)
-    state = %{seq: 0, interval: interval}
+    # `seq` counts every signal (global order); `type_seqs` counts each type on
+    # its own so every dedicated channel gets a gap-free 1,2,3,... sequence.
+    state = %{seq: 0, type_seqs: %{}, interval: interval}
     schedule(interval)
     Logger.info("Generator started, emitting a signal roughly every #{interval}ms")
     {:ok, state}
@@ -43,7 +45,9 @@ defmodule Meowmetry.Generator do
     # even flow instead of a random one that could starve a transport.
     types = Meowmetry.Signal.types()
     type = Enum.at(types, rem(state.seq, length(types)))
-    signal = Meowmetry.Signal.build(type, seq, System.system_time(:millisecond))
+    # Per-type sequence: contiguous within this channel, independent of `seq`.
+    type_seq = Map.get(state.type_seqs, type, 0) + 1
+    signal = Meowmetry.Signal.build(type, seq, type_seq, System.system_time(:millisecond))
 
     # Fan out.
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:signal, signal})
@@ -54,7 +58,7 @@ defmodule Meowmetry.Generator do
     # Jitter the next tick +/- 40% so the stream feels organic.
     jitter = trunc(state.interval * (0.6 + :rand.uniform() * 0.8))
     schedule(jitter)
-    {:noreply, %{state | seq: seq}}
+    {:noreply, %{state | seq: seq, type_seqs: Map.put(state.type_seqs, type, type_seq)}}
   end
 
   defp schedule(ms), do: Process.send_after(self(), :tick, ms)

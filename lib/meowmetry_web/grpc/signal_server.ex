@@ -38,6 +38,7 @@ defmodule MeowmetryWeb.Grpc.SignalServer do
     %Signal{
       id: signal["id"],
       seq: signal["seq"],
+      type_seq: signal["type_seq"],
       ts: signal["ts"],
       type: signal["type"],
       service: signal["service"],

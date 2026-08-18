@@ -19,6 +19,7 @@ defmodule Meowmetry.Grpc.Signal do
   field :service, 5, type: :string
   field :severity, 6, type: :string
   field :payload_json, 7, type: :string, json_name: "payloadJson"
+  field :type_seq, 8, type: :int64, json_name: "typeSeq"
 end
 
 defmodule Meowmetry.Grpc.SignalStream.Service do

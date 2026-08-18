@@ -178,7 +178,7 @@ defmodule MeowmetryWeb.PageController do
         function rowHtml(s) {
           const sev = ['error', 'warn'].includes(s.severity) ? 'sev-' + s.severity : '';
           return '<div class="ev">' +
-            '<span class="seq">#' + s.seq + '</span>' +
+            '<span class="seq">#' + (s.type_seq != null ? s.type_seq : s.seq) + '</span>' +
             '<span class="type ' + s.type + '">' + s.type + '</span>' +
             '<span class="svc">' + s.service + '</span>' +
             '<span class="' + sev + '">' + s.severity + '</span>' +

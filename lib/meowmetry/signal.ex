@@ -9,7 +9,8 @@ defmodule Meowmetry.Signal do
 
       %{
         "id"       => "sig_9f3a...",         # unique id
-        "seq"      => 42,                     # monotonic sequence (used by long-poll cursor)
+        "seq"      => 42,                     # global sequence across all types
+        "type_seq" => 9,                      # per-type sequence (used by long-poll cursor)
         "ts"       => 1_752_000_000_000,      # unix milliseconds
         "type"     => "trace" | "log" | "metric" | "profile" | "event",
         "service"  => "checkout",
@@ -22,14 +23,20 @@ defmodule Meowmetry.Signal do
   @services ~w(checkout auth payments inventory search notifications gateway)
   @severities ~w(debug info warn error)
 
-  @doc "Build a signal of the given `type` with a monotonic sequence and timestamp (ms)."
-  def build(type, seq, ts_ms) when type in @types do
+  @doc """
+  Build a signal of the given `type`.
+
+  `seq` is the global sequence across every type; `type_seq` is this type's own
+  gap-free sequence (what a single-type channel like long-poll uses as its cursor).
+  """
+  def build(type, seq, type_seq, ts_ms) when type in @types do
     service = Enum.random(@services)
     severity = Enum.random(@severities)
 
     %{
       "id" => new_id(),
       "seq" => seq,
+      "type_seq" => type_seq,
       "ts" => ts_ms,
       "type" => type,
       "service" => service,
@@ -39,7 +46,7 @@ defmodule Meowmetry.Signal do
   end
 
   @doc "Build a signal of a random type."
-  def random(seq, ts_ms), do: build(Enum.random(@types), seq, ts_ms)
+  def random(seq, ts_ms), do: build(Enum.random(@types), seq, seq, ts_ms)
 
   @doc "List of the signal types the server produces."
   def types, do: @types

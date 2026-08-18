@@ -32,8 +32,9 @@ defmodule MeowmetryWeb.PollController do
     # Subscribe *before* reading the buffer so a signal produced in between is
     # never lost — we'll just receive it over PubSub instead.
     Phoenix.PubSub.subscribe(Meowmetry.PubSub, topic)
-    {all, latest} = Buffer.since(params["cursor"])
-    buffered = Enum.filter(all, &(&1["type"] == @type_))
+    # `since/2` scopes both the filter and the cursor to this channel's type, so
+    # the cursor is a gap-free per-type sequence the client can order against.
+    {buffered, latest} = Buffer.since(@type_, params["cursor"])
 
     signals = if buffered != [], do: buffered, else: collect(@wait_ms)
 
@@ -42,7 +43,7 @@ defmodule MeowmetryWeb.PollController do
     cursor =
       case List.last(signals) do
         nil -> latest
-        last -> max(latest, last["seq"])
+        last -> max(latest, last["type_seq"])
       end
 
     conn
