@@ -64,6 +64,7 @@ services:
     environment:
       PORT: "4000"
       GRPC_PORT: "50051"
+      KAFKA_ENABLED: "true"
       KAFKA_BROKERS: "kafka:9092"
       KAFKA_TOPIC: "signals"
       GENERATOR_INTERVAL_MS: "700"

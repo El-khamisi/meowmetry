@@ -33,7 +33,7 @@ brokers =
 
 config :meowmetry, :kafka,
   brokers: brokers,
-  enabled: System.get_env("KAFKA_ENABLED", "true") == "true",
+  enabled: System.get_env("KAFKA_ENABLED", "false") == "true",
   topic: System.get_env("KAFKA_TOPIC", "signals")
 
 # --- gRPC ------------------------------------------------------------------

@@ -176,7 +176,8 @@ JSON). VictoriaMetrics needs no config file — it ingests OTLP out of the box.
 ```bash
 # needs Elixir 1.18 / OTP 27+ (see .tool-versions)
 mix deps.get
-KAFKA_ENABLED=false mix phx.server   # skip Kafka if you have no broker
+mix phx.server                       # Kafka is off by default
+KAFKA_ENABLED=true mix phx.server    # enable Kafka (needs a broker at KAFKA_BROKERS)
 ```
 
 ## Configuration (env vars)
@@ -187,7 +188,7 @@ KAFKA_ENABLED=false mix phx.server   # skip Kafka if you have no broker
 | `GRPC_PORT`             | `50051`          | gRPC port                            |
 | `GRPC_ENABLED`          | `true`           | Start the gRPC server                |
 | `KAFKA_BROKERS`         | `localhost:9092` | Comma-separated `host:port`          |
-| `KAFKA_ENABLED`         | `true`           | Produce to Kafka                     |
+| `KAFKA_ENABLED`         | `false`          | Produce to Kafka                     |
 | `KAFKA_TOPIC`           | `signals`        | Topic to publish to                  |
 | `GENERATOR_INTERVAL_MS` | `700`            | Base gap between signals (jittered)  |
 
