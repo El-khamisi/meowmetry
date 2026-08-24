@@ -26,6 +26,15 @@ services:
       interval: 10s
       timeout: 10s
       retries: 12
+    networks:
+      default:
+      caddy-ingress:
+    labels:
+      caddy: meowmetry-kafka.dev1.mnt.group
+      caddy.0_reverse_proxy: "{{upstreams 9092}}"
+      caddy.0_reverse_proxy.0_header_up: X-Real-IP {remote}
+      caddy.encode: zstd gzip
+      caddy.log:
 
   # Web UI to eyeball topics/messages: http://localhost:8080
   kafka-ui:
