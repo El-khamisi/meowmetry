@@ -19,6 +19,11 @@ erl_crash.dump
 __pycache__/
 *.pyc
 
+# Python virtualenvs
+kafka-env/
+.venv/
+venv/
+
 # ---------------------------------------------------------------------------
 # Intern solutions — kept locally, never committed. My reference copies of the
 # exercises live under solutions_local/ (clients per transport, the OTLP

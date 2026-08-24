@@ -7,6 +7,13 @@ stream_over_http_enabled: true
 server:
   http_listen_port: 3200
 
+query_frontend:
+  search:
+    # Lift Tempo's default 7-day (168h) cap on search time ranges, so a wide
+    # Grafana range doesn't return "range ... exceeds 168h0m0s". 0 = no limit.
+    # Note: block_retention below is 1h, so wide ranges still return little.
+    max_duration: 0s
+
 distributor:
   receivers:
     otlp:
