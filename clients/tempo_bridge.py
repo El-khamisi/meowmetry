@@ -10,12 +10,16 @@ Defaults:
 
 Tempo ingests OTLP natively, so this pushes spans straight to it — no collector.
 
-Each `trace` signal becomes one OTLP span:
-    * resource `service.name` = the signal's `resource` (so Tempo groups by service),
+Each `trace` signal carries a whole call tree, not a single span: the payload is
+the root span and its `children` are nested descendants (several levels deep, and
+`rpc.call` children run in a downstream service). This bridge walks that tree and
+emits one OTLP span per node, wiring each child into its parent's context so they
+share a trace id and Tempo draws the waterfall:
+    * resource `service.name` = each span's `resource` (so a trace can span services),
     * span name              = `operation`,
-    * start/end              = `ts` .. `ts + duration_ms` (real duration),
-    * status                 = ERROR when the signal errored,
-    * attributes             = http.status_code, span.kind, region, host, seq.
+    * start/end              = parent_start + `start_offset_ms` .. + `duration_ms`,
+    * status                 = ERROR when that span errored,
+    * attributes             = http.status_code, span.kind, seq.
 
 Tempo stores the traces; query them in Grafana with TraceQL, e.g.
     { resource.service.name = "payments" && status = error }
@@ -24,6 +28,7 @@ import sys
 import time
 
 import requests
+from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -55,28 +60,39 @@ def tracer_for(service):
     return prov.get_tracer("meowmetry.tempo-bridge")
 
 
-def emit(sig):
-    p = sig["payload"]
-    service = p.get("resource", sig.get("service", "unknown"))
-    start_ns = int(sig["ts"]) * 1_000_000
-    end_ns = start_ns + int(float(p["duration_ms"]) * 1_000_000)
+def emit_span(node, parent_ctx, parent_start_ns, seq):
+    """Emit one span, then recurse into its children within this span's context."""
+    start_ns = parent_start_ns + int(float(node.get("start_offset_ms", 0.0)) * 1_000_000)
+    end_ns = start_ns + int(float(node["duration_ms"]) * 1_000_000)
+    service = node.get("resource", "unknown")
 
+    # parent_ctx is None for the root -> new trace; a child's context carries the
+    # parent's SpanContext, so the child inherits its trace id and parent span id.
     span = tracer_for(service).start_span(
-        p["operation"],
-        kind=_KIND.get(p.get("span_kind"), SpanKind.INTERNAL),
+        node["operation"],
+        context=parent_ctx,
+        kind=_KIND.get(node.get("span_kind"), SpanKind.INTERNAL),
         start_time=start_ns,
     )
-    span.set_attribute("signal.seq", sig["seq"])
-    span.set_attribute("span.kind.raw", p.get("span_kind", ""))
-    span.set_attribute("region", p.get("region", ""))
-    span.set_attribute("host", p.get("host", ""))
-    if p.get("http_status") is not None:
-        span.set_attribute("http.status_code", p["http_status"])
-    if p.get("status") == "error":
+    span.set_attribute("signal.seq", seq)
+    span.set_attribute("span.kind.raw", node.get("span_kind", ""))
+    if node.get("http_status") is not None:
+        span.set_attribute("http.status_code", node["http_status"])
+    if node.get("status") == "error":
         span.set_status(Status(StatusCode.ERROR))
     else:
         span.set_status(Status(StatusCode.OK))
+
+    child_ctx = trace.set_span_in_context(span)
+    for child in node.get("children", []):
+        emit_span(child, child_ctx, start_ns, seq)
+
     span.end(end_time=end_ns)
+
+
+def emit(sig):
+    # The payload is the root span; `children` (recursively) are its descendants.
+    emit_span(sig["payload"], None, int(sig["ts"]) * 1_000_000, sig["seq"])
 
 
 def main():

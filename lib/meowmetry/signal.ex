@@ -23,6 +23,9 @@ defmodule Meowmetry.Signal do
   @services ~w(checkout auth payments inventory search notifications gateway)
   @severities ~w(debug info warn error)
 
+  # How deep a single trace's span tree may grow (root is depth 0).
+  @max_trace_depth 5
+
   @doc """
   Build a signal of the given `type`.
 
@@ -63,23 +66,34 @@ defmodule Meowmetry.Signal do
   #   * realistic ~2-5% error rates with occasional bursts, and errored spans run
   #     slower (timeouts) — so RED dashboards (Rate/Errors/Duration) mean something.
   #
-  # Fields follow OTEL span conventions (span_kind / http_status) so the span maps
+  # A trace is NOT a single span: each signal carries a whole call tree. The root
+  # is an HTTP entry point; it fans out to backend calls (cache/db/rpc/publish),
+  # and an `rpc.call` crosses a service boundary into a downstream service that
+  # does its own work — so a trace is several levels deep and spans services.
+  #
+  # Shape (top-level fields describe the ROOT span, so simple consumers still see
+  # a normal span; `children` holds the nested descendants):
+  #
+  #     %{
+  #       "trace_id"       => "...",
+  #       "span_id"        => "...",
+  #       "parent_span_id" => nil,                # root has no parent
+  #       "operation"      => "GET /cart",
+  #       "start_offset_ms"=> 0.0,                # start relative to the PARENT span
+  #       "duration_ms"    => 142.0,              # covers the whole subtree
+  #       "status"         => "ok" | "error",     # errors bubble up from children
+  #       "span_kind"      => "server",
+  #       "http_status"    => 200,
+  #       "resource"       => "checkout",
+  #       "children"       => [ %{...same shape, own children...}, ... ]
+  #     }
+  #
+  # Fields follow OTEL span conventions (span_kind / http_status) so the tree maps
   # cleanly onto an OTLP push into Tempo.
   defp payload_for("trace", service, ts_ms) do
-    operation = Enum.random(["GET /cart", "POST /order", "db.query", "cache.get", "rpc.call", "publish"])
-    {duration_ms, status} = trace_timing(operation, service, ts_ms)
-
-    %{
-      "trace_id" => hex(16),
-      "span_id" => hex(8),
-      "parent_span_id" => Enum.random([nil, hex(8)]),
-      "operation" => operation,
-      "duration_ms" => duration_ms,
-      "status" => status,
-      "span_kind" => span_kind(operation),
-      "http_status" => http_status(operation, status),
-      "resource" => service
-    }
+    root_operation()
+    |> build_span(service, ts_ms, _parent_span_id = nil, _depth = 0)
+    |> Map.put("trace_id", hex(16))
   end
 
   defp payload_for("log", service, _ts_ms) do
@@ -94,7 +108,10 @@ defmodule Meowmetry.Signal do
           "rate limit exceeded"
         ]),
       "logger" => "#{service}.Handler",
-      "context" => %{"user_id" => :rand.uniform(9999), "region" => Enum.random(~w(us-east eu-west ap-south))}
+      "context" => %{
+        "user_id" => :rand.uniform(9999),
+        "region" => Enum.random(~w(us-east eu-west ap-south))
+      }
     }
   end
 
@@ -129,7 +146,8 @@ defmodule Meowmetry.Signal do
     frames =
       for _ <- 1..(:rand.uniform(5) + 2) do
         %{
-          "function" => Enum.random(~w(handle_call encode decode fetch! Repo.all serialize compress)),
+          "function" =>
+            Enum.random(~w(handle_call encode decode fetch! Repo.all serialize compress)),
           "self_ms" => :rand.uniform(80)
         }
       end
@@ -143,7 +161,10 @@ defmodule Meowmetry.Signal do
   end
 
   defp payload_for("event", _service, _ts_ms) do
-    name = Enum.random(~w(deploy scale_up scale_down config_change feature_flag incident_open incident_close))
+    name =
+      Enum.random(
+        ~w(deploy scale_up scale_down config_change feature_flag incident_open incident_close)
+      )
 
     %{
       "name" => name,
@@ -154,6 +175,88 @@ defmodule Meowmetry.Signal do
     }
   end
 
+  # --- Trace tree construction -------------------------------------------------
+
+  # HTTP entry points are the roots of a trace.
+  defp root_operation, do: Enum.random(["GET /cart", "POST /order"])
+
+  # Recursively build one span and its subtree. The caller fills in each child's
+  # `start_offset_ms` (relative to the parent's start); the root keeps 0.0.
+  # Timing and errors compose upward: a parent's duration covers its children plus
+  # a little self time, and it is "error" if its own roll errored or any
+  # descendant did (so a failed downstream call reddens the whole trace).
+  defp build_span(operation, service, ts_ms, parent_span_id, depth) do
+    span_id = hex(8)
+
+    {children, children_span_ms} =
+      operation
+      |> child_operations(service, depth)
+      |> Enum.map_reduce(0.0, fn {child_op, child_service}, cursor ->
+        # A small gap after the previous sibling before this child fires.
+        offset = cursor + 1.0 + :rand.uniform() * 4.0
+
+        child =
+          child_op
+          |> build_span(child_service, ts_ms, span_id, depth + 1)
+          |> Map.put("start_offset_ms", Float.round(offset, 1))
+
+        {child, offset + child["duration_ms"]}
+      end)
+
+    {self_ms, self_status} = trace_timing(operation, service, ts_ms)
+
+    duration_ms =
+      if children == [] do
+        self_ms
+      else
+        # Parent spans the work of its children plus a little self time.
+        Float.round(children_span_ms + max(1.0, self_ms * 0.25), 1)
+      end
+
+    status =
+      if self_status == "error" or Enum.any?(children, &(&1["status"] == "error")),
+        do: "error",
+        else: "ok"
+
+    %{
+      "span_id" => span_id,
+      "parent_span_id" => parent_span_id,
+      "operation" => operation,
+      "start_offset_ms" => 0.0,
+      "duration_ms" => duration_ms,
+      "status" => status,
+      "span_kind" => span_kind(operation),
+      "http_status" => http_status(operation, status),
+      "resource" => service,
+      "children" => children
+    }
+  end
+
+  # Which downstream calls each operation fans out into, and in which service they
+  # run. Returns `[{operation, service}]`. Depth is capped so traces stay a
+  # handful of levels deep instead of recursing forever.
+  defp child_operations(_operation, _service, depth) when depth >= @max_trace_depth, do: []
+
+  defp child_operations(operation, service, _depth)
+       when operation in ["GET /cart", "POST /order"] do
+    # An HTTP entry point does a few backend calls within its own service.
+    ["cache.get", "db.query", "rpc.call", "publish"]
+    |> Enum.take_random(2 + :rand.uniform(2))
+    |> Enum.map(&{&1, service})
+  end
+
+  defp child_operations("rpc.call", service, _depth) do
+    # An RPC crosses a service boundary: its children run in a DOWNSTREAM service.
+    downstream = Enum.random(@services -- [service])
+
+    ["db.query", "cache.get", "rpc.call"]
+    |> Enum.take_random(:rand.uniform(2))
+    |> Enum.map(&{&1, downstream})
+  end
+
+  # cache.get / db.query / publish are leaves — they do no further calls.
+  defp child_operations(_leaf, _service, _depth), do: []
+
   defp unit_for("http.latency_ms"), do: "ms"
   defp unit_for("cpu.percent"), do: "percent"
   defp unit_for("mem.mb"), do: "megabytes"
@@ -161,20 +264,34 @@ defmodule Meowmetry.Signal do
   defp unit_for(_), do: "count"
 
   # A realistic sample: baseline shaped by a diurnal wave, scaled per service,
-  # with occasional anomaly spikes. Returns a rounded float.
+  # made to MOVE in realtime, with occasional anomaly spikes. Returns a rounded float.
   defp metric_value(name, service, ts_ms) do
     {low, high} = metric_range(name)
     wave = diurnal(ts_ms)
     svc = service_factor(service)
 
-    # Base sits `wave` of the way up the range, nudged by the service factor.
+    # Base sits `wave` of the way up the range, nudged by the service factor...
     base = low + (high - low) * wave * svc
+    # ...then swings smoothly second-to-second so a live chart actually moves.
+    base = base * (1.0 + 0.18 * realtime_wave(name, service, ts_ms))
     # ~4% of samples spike toward (or past) the top of the range.
     spike = if :rand.uniform() < 0.04, do: (high - base) * (0.6 + :rand.uniform()), else: 0.0
-    # +/-8% organic jitter.
-    jitter = base * (:rand.uniform() - 0.5) * 0.16
+    # +/-5% organic jitter for micro-texture on top of the smooth swing.
+    jitter = base * (:rand.uniform() - 0.5) * 0.10
 
     (base + spike + jitter) |> max(low) |> Float.round(2)
+  end
+
+  # A smooth, wall-clock-driven fluctuation so each series visibly MOVES in
+  # realtime (seconds-to-minutes) instead of sitting flat between diurnal shifts.
+  # Two out-of-phase sine components — a ~90s swell and a ~13s ripple — offset
+  # per (name, service) so series aren't in lockstep. Returns roughly [-1.0, 1.0].
+  defp realtime_wave(name, service, ts_ms) do
+    t = ts_ms / 1000.0
+    phase = rem(:erlang.phash2({name, service}, 100_000), 100_000) / 100_000 * 2 * :math.pi()
+    swell = :math.sin(t / 90.0 * 2 * :math.pi() + phase)
+    ripple = :math.sin(t / 13.0 * 2 * :math.pi() + phase * 2.0)
+    0.7 * swell + 0.3 * ripple
   end
 
   # Plausible operating range per metric name.
