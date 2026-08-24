@@ -40,11 +40,11 @@ services:
     image: confluentinc/cp-kafka-rest:7.6.1
     restart: unless-stopped
     ports:
-      - "8081:8082"
+      - "8086:8082"
     environment:
       KAFKA_REST_HOST_NAME: kafka-rest
       KAFKA_REST_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_REST_LISTENERS: http://0.0.0.0:8081
+      KAFKA_REST_LISTENERS: http://0.0.0.0:8086
     depends_on:
       kafka:
         condition: service_healthy
@@ -53,7 +53,7 @@ services:
       caddy-ingress:
     labels:
       caddy: meowmetry-kafka.dev1.mnt.group
-      caddy.0_reverse_proxy: "{{upstreams 8081}}"
+      caddy.0_reverse_proxy: "{{upstreams 8086}}"
       caddy.0_reverse_proxy.0_header_up: X-Real-IP {remote}
       caddy.encode: zstd gzip
       caddy.log:
